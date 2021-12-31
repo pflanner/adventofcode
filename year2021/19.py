@@ -1,4 +1,5 @@
-from operator import itemgetter
+from itertools import product
+from util import get_lines_for_day, get_groups
 
 
 rotations = [
@@ -20,42 +21,30 @@ def rotate(scanner, x, y, z):
     :return: the scanner after all rotation is complete
     """
     # first, rotate about the x axis
-    for _ in range(x):
-        new_scanner = set()
-        for sx, sy, sz in scanner:
-            new_scanner.add((sx, sz, -sy))
-        scanner = new_scanner
+    if x > 0:
+        for _ in range(x):
+            new_scanner = set()
+            for sx, sy, sz in scanner:
+                new_scanner.add((sx, sz, -sy))
+            scanner = new_scanner
 
     # next, about the y axis
-    for _ in range(y):
-        new_scanner = set()
-        for sx, sy, sz in scanner:
-            new_scanner.add((-sz, sy, sx))
-        scanner = new_scanner
+    if y > 0:
+        for _ in range(y):
+            new_scanner = set()
+            for sx, sy, sz in scanner:
+                new_scanner.add((-sz, sy, sx))
+            scanner = new_scanner
 
     # about the z axis
-    for _ in range(z):
-        new_scanner = set()
-        for sx, sy, sz in scanner:
-            new_scanner.add((-sy, sx, sz))
-        scanner = new_scanner
+    if z > 0:
+        for _ in range(z):
+            new_scanner = set()
+            for sx, sy, sz in scanner:
+                new_scanner.add((-sy, sx, sz))
+            scanner = new_scanner
 
     return scanner
-
-
-def flip_axis(scanner, axis):
-    if axis is None:
-        return scanner
-
-    index = 0 if axis == 'x' else 1 if axis == 'y' else 2
-    new_scanner = set()
-
-    for p in scanner:
-        newp = list(p)
-        newp[index] *= -1
-        new_scanner.add(tuple(newp))
-
-    return new_scanner
 
 
 def translate(scanner, tx, ty, tz):
@@ -78,31 +67,24 @@ def get_translations(s1, s2):
     return translations
 
 
-def combine(s1, s2):
-    max_points_matched = 0
-    operation_count = 0
+def combine(s1, s2, locations):
     for rotation in rotations:
         s2_rotated = rotate(s2, *rotation)
-        for axis in ['x', 'y', 'z', None]:
-            s2_flipped = flip_axis(s2_rotated, axis)
-            for translation in get_translations(s1, s2):
-                operation_count += 1
-                s2_translated = translate(s2_flipped, *translation)
-                max_points_matched = max(max_points_matched, len(s1.intersection(s2_translated)))
-                l1 = s1
-                if len(s1.intersection(s2_translated)) >= 3:
-                    s1.update(s2_translated)
-                    return True
+        for translation in get_translations(s1, s2_rotated):
+            s2_translated = translate(s2_rotated, *translation)
+            if len(s1.intersection(s2_translated)) >= 12:
+                locations.append((translation[0], translation[1], translation[2]))
+                s1.update(s2_translated)
+                return True
     return False
 
 
-def part1(scanners):
+def arrange_scanners(scanners, locations):
     """
-    compare everything against the orientation of scanner 0
-    quadratic iteration, compare 2 scanners at a time
-    try all 24 orientations
-    :param scanners:
-    :return:
+    keep trying to combine into a large scanner with the orientation of scanner 0 until we can't anymore
+    :param scanners: all scanners to combine
+    :param locations: the locations where scanners end up after we move them to fit
+    :return: how many total points all scanners can see
     """
     megascanner, scanners = scanners[0], scanners[1:]
     did_combine = True
@@ -110,7 +92,7 @@ def part1(scanners):
         did_combine = False
         new_scanners = []
         for i, s in enumerate(scanners):
-            if combine(megascanner, s):
+            if combine(megascanner, s, locations):
                 did_combine = True
             else:
                 new_scanners.append(s)
@@ -121,13 +103,21 @@ def part1(scanners):
 
 if __name__ == '__main__':
     scanners = []
-    with open("input/19_test.txt") as f:
-        lines = f.read()
-        groups = lines.split('\n\n')
-        for group in groups:
-            scanners.append(set())
-            for coords in group.strip().split('\n')[1:]:
-                x, y, z = map(int, coords.split(','))
-                scanners[-1].add((x, y, z))
+    lines = get_lines_for_day(2021, 19)
+    groups = get_groups(lines)
+    for group in groups:
+        scanners.append(set())
+        for coords in group[1:]:
+            x, y, z = map(int, coords.split(','))
+            scanners[-1].add((x, y, z))
 
-    print(part1(scanners))
+    locations = [(0, 0, 0)]
+    print(arrange_scanners(scanners, locations))  # part 1
+
+    farthest = 0
+    for l1, l2 in product(locations, locations):
+        x1, y1, z1 = l1
+        x2, y2, z2 = l2
+        distance = abs(x2 - x1) + abs(y2 - y1) + abs(z2 - z1)
+        farthest = max(farthest, distance)
+    print(farthest)  # part2
