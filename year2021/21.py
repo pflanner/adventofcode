@@ -1,6 +1,7 @@
 def increase(p, magnitude, range):
     return (p - 1 + magnitude) % range + 1
 
+
 def part1(p1, p2):
     s1 = s2 = 0
     num_rolls = 0
@@ -69,7 +70,6 @@ def part2(player1, player2):
     w1, w2 = helper(*initial_input)
 
     return max(w1, w2)
-
 
 
 if __name__ == '__main__':
